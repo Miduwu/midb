@@ -1,5 +1,4 @@
 node_modules
 database/
-dist/
 package-lock.json
-src/tests.ts
+src/
