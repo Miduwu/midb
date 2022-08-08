@@ -2,3 +2,4 @@ node_modules
 database/
 package-lock.json
 src/
+dist/tests.ts

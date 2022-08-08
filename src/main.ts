@@ -19,7 +19,7 @@ class Database extends TypedEmitter<Events> {
         _.set(content, key, value)
         this.insert(table, content)
     }
-    async get(key: string, table: string = 'main'): Promise<any> {
+    async get<T = any>(key: string, table: string = 'main'): Promise<T | null> {
         if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.get()')
         let content = this.getTable(table)
         if(!content) return null
@@ -31,6 +31,40 @@ class Database extends TypedEmitter<Events> {
         if(!content) return
         _.unset(content, key)
         this.insert(table, content)
+    }
+    async push(key: string, value: any, table: string = 'main'): Promise<void> {
+        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.push()')
+        let v = await this.get<any[]>(key, table)
+        if(v && !Array.isArray(v)) throw new SyntaxError('MIDB: Provided key is not an array, reset it to a empty one. In: <Database>.push()')
+        if(!v) v = []
+        v.push(value)
+        this.set(key, v, table)
+    }
+    async remove(key: string, value: any, table: string = 'main'): Promise<void> {
+        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
+        let v = await this.get<any[]>(key, table)
+        if(v && !Array.isArray(v)) throw new SyntaxError('MIDB: Provided key is not an array, in: <Database>.push()')
+        if(!v) this.set(key, [], table)
+        else {
+            v = _.without(v, value)
+            this.set(key, v, table)
+        }
+    }
+    async add(key: string, value: number, table: string = 'main'): Promise<void> {
+        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
+        if(isNaN(value)) throw new SyntaxError('MIDB: Provided value is not a number in <Database>.add()')
+        let v = await this.get<number>(key, table)
+        if(v && isNaN(v)) throw new SyntaxError('MIDB: Provided key is not a number, reset it. In: <Database>.add()')
+        if(!v) v = 0
+        this.set(key, (v + value), table)
+    }
+    async sub(key: string, value: number, table: string = 'main'): Promise<void> {
+        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
+        if(isNaN(value)) throw new SyntaxError('MIDB: Provided value is not a number in <Database>.add()')
+        let v = await this.get<number>(key, table)
+        if(v && isNaN(v)) throw new SyntaxError('MIDB: Provided key is not a number, reset it. In: <Database>.add()')
+        if(!v) v = 0
+        this.set(key, (v - value), table)
     }
     async has(key: string, table: string = 'main'): Promise<boolean> {
         if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.has()')
