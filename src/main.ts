@@ -1,112 +1,118 @@
-import { DatabaseOptions, Events } from "main";
-import _ from "lodash"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
-import { TypedEmitter } from "tiny-typed-emitter"
+import { SqliteDriver } from "./classes/SqliteDriver";
+import { JSONDriver } from "./classes/JSONDriver";
+import { TypedEmitter } from "tiny-typed-emitter";
+import _ from "lodash";
 
-class Database extends TypedEmitter<Events> {
-    private path: string
-    tables: string[]
-    constructor(options?: DatabaseOptions) {
-        super()
-        this.path = options?.path || '/database'
-        this.tables = options?.tables ? options?.tables.concat('main'): ['main']
-    }
-    async set(key: string, value: any, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.set()')
-        let content = this.getTable(table)
-        if(!content) content = {}
-        _.set(content, key, value)
-        this.insert(table, content)
-    }
-    async get<T = any>(key: string, table: string = 'main'): Promise<T | null> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.get()')
-        let content = this.getTable(table)
-        if(!content) return null
-        return _.get(content, key)
-    }
-    async delete(key: string, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.delete()')
-        let content = this.getTable(table)
-        if(!content) return
-        _.unset(content, key)
-        this.insert(table, content)
-    }
-    async push(key: string, value: any, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.push()')
-        let v = await this.get<any[]>(key, table)
-        if(v && !Array.isArray(v)) throw new SyntaxError('MIDB: Provided key is not an array, reset it to a empty one. In: <Database>.push()')
-        if(!v) v = []
-        v.push(value)
-        this.set(key, v, table)
-    }
-    async remove(key: string, value: any, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
-        let v = await this.get<any[]>(key, table)
-        if(v && !Array.isArray(v)) throw new SyntaxError('MIDB: Provided key is not an array, in: <Database>.push()')
-        if(!v) this.set(key, [], table)
-        else {
-            v = _.without(v, value)
-            this.set(key, v, table)
-        }
-    }
-    async add(key: string, value: number, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
-        if(isNaN(value)) throw new SyntaxError('MIDB: Provided value is not a number in <Database>.add()')
-        let v = await this.get<number>(key, table)
-        if(v && isNaN(v)) throw new SyntaxError('MIDB: Provided key is not a number, reset it. In: <Database>.add()')
-        if(!v) v = 0
-        this.set(key, (v + value), table)
-    }
-    async sub(key: string, value: number, table: string = 'main'): Promise<void> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.remove()')
-        if(isNaN(value)) throw new SyntaxError('MIDB: Provided value is not a number in <Database>.add()')
-        let v = await this.get<number>(key, table)
-        if(v && isNaN(v)) throw new SyntaxError('MIDB: Provided key is not a number, reset it. In: <Database>.add()')
-        if(!v) v = 0
-        this.set(key, (v - value), table)
-    }
-    async has(key: string, table: string = 'main'): Promise<boolean> {
-        if(!this.isValidTable(table)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.has()')
-        let v = await this.get(key, table)
-        return v ? true: false
-    }
-    async ping(): Promise<number> {
-        let before = Date.now()
-        await this.get('hi')
-        return Date.now() - before
-    }
-    getTable(name: string): Record<string, any> | null {
-        if(!this.isValidTable(name)) throw new SyntaxError('MIDB: Invalid table provided in: <Database>.getTable()')
-        try {
-            let content = readFileSync(join(process.cwd(), this.path, 'tables', name+'.json'))
-            if(!content) return null
-            let parsed = JSON.parse(content.toString())
-            return parsed
-        } catch {
-            return null
-        }
-    }
-    private insert(name: string, data: Record<string, any>): void {
-        if(!existsSync(join(process.cwd(), this.path, 'tables', name))) {
-            writeFileSync(join(process.cwd(), this.path, 'tables', name +'.json'), JSON.stringify({}))
-        }
-        writeFileSync(join(process.cwd(), this.path, 'tables', name+'.json'), JSON.stringify(data))
-    }
-    private isValidTable(table: string): boolean {
-        return this.tables.includes(table)
-    }
-    start(): void {
-        if(!existsSync(join(process.cwd(), this.path))) {
-            mkdirSync(join(process.cwd(), this.path))
-        }
-        if(!existsSync(join(process.cwd(), this.path, 'tables'))) {
-            mkdirSync(join(process.cwd(), this.path, 'tables'))
-        }
-        // @ts-ignore
-        this.emit('ready', this)
-    }
+export type DatabaseFormat = "sqlite" | "json"
+
+export interface DatabaseOptions {
+    /**
+     * The directory where the data will be saved
+     */
+    path: string
+    /**
+     * The shards number (Unavailable in SQL format)
+     */
+    shards?: number;
+    /**
+     * The database format (json or sqlite)
+     */
+    format: DatabaseFormat
+    /**
+     * If the data have to be encrypted (you have to set an encryption key)
+     */
+    encrypt?: boolean;
+    /**
+     * The permanent encryption key (you can't change it after you start to use the database)
+     */
+    encryptionKey?: string;
 }
 
-export { Database }
-export default { Database, version: require('../package.json').version }
+export interface TimeoutOptions {
+    time: number
+    id?: string
+    restore?: boolean
+}
+
+export interface Timeout {
+    key: string
+    restore: boolean
+    value: any
+    idUsed: string
+    expiresAt: number
+}
+
+export interface DatabaseEvents {
+    expires: (timeout: Timeout) => void
+}
+
+export class Database extends TypedEmitter<DatabaseEvents> {
+    private driver: SqliteDriver | JSONDriver;
+    constructor(options: DatabaseOptions) {
+        super()
+        if(!options) throw new SyntaxError("MIDB: You must provide the database options")
+        if(typeof options.path !== "string") throw new SyntaxError("MIDB: You must provide a valid path option")
+        if(options.encrypt && !options.encryptionKey) throw new SyntaxError("MIDB: To use encryption mode, you must provide an encryption key")
+        if(options.shards && typeof options.shards !== "number") throw new SyntaxError("MIDB: You must provide a valid shards number")
+        if(options.format === "json") this.driver = new JSONDriver(options.path, options.shards, options.encrypt, options.encryptionKey)
+        else if(options.format === "sqlite") this.driver = new SqliteDriver(options.path, options.encrypt, options.encryptionKey)
+        else throw new SyntaxError("MIDB: Invalid database format")
+    }
+
+    async set<V = unknown>(key: string, value: unknown, table: string = "main"): Promise<V> {
+        return await this.driver.set(key, value, table) as V;
+    }
+
+    async get<T = unknown>(key: string, table: string = "main"): Promise<T | null> {
+        return await this.driver.get(key, table);
+    }
+
+    async delete(key: string, table: string = "main"): Promise<void> {
+        return await this.driver.delete(key, table)
+    }
+
+    async timeout(key: string, value: unknown, options: TimeoutOptions): Promise<string> {
+        let timeouts = await this.driver.getTable<Timeout>("timeouts")
+        if(!timeouts) timeouts = {}
+        const uniqueId = Date.now().toString(16) + Math.floor(Math.random() * 999999).toString(16)
+        timeouts[uniqueId] = {
+            key,
+            expiresAt: Date.now() + options.time,
+            restore: options.restore || true,
+            value,
+            idUsed: uniqueId, 
+        }
+        await this.driver.setTable("timeouts", timeouts)
+        setTimeout(async() => {
+            await this.expireNow(timeouts[uniqueId])
+        }, options.time)
+        return uniqueId
+    }
+
+    async removeTimeout(timeout: Timeout) {
+        let timeouts = await this.driver.getTable<Timeout>("timeouts")
+        timeouts = _.omit(timeouts, timeout.idUsed)
+        console.log("D", timeouts)
+        await this.driver.setTable("timeouts", timeouts)
+        return timeouts
+    }
+
+    private async expireNow(timeout: Timeout, cancelEmit = false) {
+        await this.removeTimeout(timeout)
+        if(!cancelEmit) this.emit("expires", timeout)
+    }
+
+    async start() {
+        let timeouts = await this.driver.getTable<Timeout>("timeouts")
+        for(const timeout of Object.keys(timeouts)) {
+            let data = timeouts[timeout]
+            if(data.expiresAt <= Date.now()) {
+                await this.expireNow(data, !data.restore)
+            } else {
+                setTimeout(async () => {
+                    await this.expireNow(data)
+                }, data.expiresAt - Date.now())
+            }
+        }
+    }
+}

@@ -1,5 +1,8 @@
 node_modules
 database/
-dist/
+lib/
 package-lock.json
 src/tests.ts
+__cache__
+tests/
+pnpm-lock.yaml
