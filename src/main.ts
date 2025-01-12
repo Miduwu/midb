@@ -92,7 +92,6 @@ export class Database extends TypedEmitter<DatabaseEvents> {
     async removeTimeout(timeout: Timeout) {
         let timeouts = await this.driver.getTable<Timeout>("timeouts")
         timeouts = _.omit(timeouts, timeout.idUsed)
-        console.log("D", timeouts)
         await this.driver.setTable("timeouts", timeouts)
         return timeouts
     }
