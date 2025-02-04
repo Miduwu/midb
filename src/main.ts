@@ -64,11 +64,77 @@ export class Database extends TypedEmitter<DatabaseEvents> {
     }
 
     async get<T = unknown>(key: string, table: string = "main"): Promise<T | null> {
-        return await this.driver.get(key, table);
+        return await this.driver.get(key, table).catch(e=>null) as T
     }
 
     async delete(key: string, table: string = "main"): Promise<void> {
         return await this.driver.delete(key, table)
+    }
+
+    // numbers
+    async sum(key: string, table: string = "main"): Promise<void> {
+        let data = await this.get<number>(key, table) || 0
+        if(isNaN(data)) throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, data + 1, table)
+    }
+
+    async sub(key: string, table: string = "main"): Promise<void> {
+        let data = await this.get<number>(key, table) || 0
+        if(isNaN(data)) throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, data - 1, table)
+    }
+
+    async multi(key: string, value: number, table: string = "main"): Promise<void> {
+        let data = await this.get<number>(key, table) || 0
+        if(isNaN(data)) throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, data * value, table)
+    }
+
+    async div(key: string, value: number, table: string = "main"): Promise<void> {
+        let data = await this.get<number>(key, table) || 0
+        if(isNaN(data)) throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, data / value, table)
+    }
+
+    // arrays
+    async push(key: string, value: any, table: string = "main"): Promise<void> {
+        let data = await this.get<any[]>(key, table) || []
+        if(!Array.isArray(data)) throw new SyntaxError("MIDB: Invalid data type")
+        data.push(value)
+        return await this.set(key, data, table)
+    }
+
+    async pop(key: string, table: string = "main"): Promise<void> {
+        let data = await this.get<any[]>(key, table) || []
+        if(!Array.isArray(data)) throw new SyntaxError("MIDB: Invalid data type")
+        data.pop()
+        return await this.set(key, data, table)
+    }
+
+    async shift(key: string, table: string = "main"): Promise<void> {
+        let data = await this.get<any[]>(key, table) || []
+        if(!Array.isArray(data)) throw new SyntaxError("MIDB: Invalid data type")
+        data.shift()
+        return await this.set(key, data, table)
+    }
+
+    async without(key: string, value: any, table: string = "main"): Promise<void> {
+        let data = await this.get<any[]>(key, table) || []
+        if(!Array.isArray(data)) throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, _.without(data, value), table)
+    }
+
+    // objects
+    async assign(key: string, value: Record<string, any>, table: string = "main"): Promise<void> {
+        let data = await this.get<Record<string, any>>(key, table) || {}
+        if(typeof data !== "object") throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, {...data, ...value}, table)
+    }
+
+    async unset(key: string, value: string, table: string = "main"): Promise<void> {
+        let data = await this.get<Record<string, any>>(key, table) || {}
+        if(typeof data !== "object") throw new SyntaxError("MIDB: Invalid data type")
+        return await this.set(key, _.omit(data, value), table)
     }
 
     async timeout(key: string, value: unknown, options: TimeoutOptions): Promise<string> {
