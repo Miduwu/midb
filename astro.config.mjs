@@ -7,7 +7,7 @@ export default defineConfig({
     site: 'https://miduwu.github.io/midb',
     integrations: [
         starlight({
-            title: 'midb - a modern way',
+            title: 'midb',
             favicon: './public/icon_white.png',
             logo: {
                 src: './public/icon_white.png'
@@ -16,6 +16,14 @@ export default defineConfig({
 				discord: 'https://discord.com/invite/dKhuDRW8dB',
 				github: 'https://github.com/Miduwu/midb',
 			},
+            sidebar: [
+				{
+					label: 'Guides',
+					items: [
+						{ label: 'Getting Started', slug: 'guides/getting-started' },
+					],
+				},
+			],
         })
     ]
 });
