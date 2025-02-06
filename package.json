@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/starlight": "^0.31.1",
     "astro": "^5.2.5"
   },
   "packageManager": "pnpm@9.15.4",
