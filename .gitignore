@@ -23,8 +23,5 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
-# pnpm
-pnpm-lock.yaml
-
 # custom folders
 midb
