@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # pnpm
 pnpm-lock.yaml
+
+# custom folders
+midb

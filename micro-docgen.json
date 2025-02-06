@@ -1,0 +1,7 @@
+{
+    "input": ["./src/main.ts"],
+    "output": "./docs",
+    "tsconfigPath": "./tsconfig.json",
+    "markdown": true,
+    "jsonName": "docs.json"
+}
